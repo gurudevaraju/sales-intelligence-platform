@@ -1,0 +1,50 @@
+{% macro pagination(pg) %}
+<div class="pagination">
+  <div class="pg-info">
+    {% if pg.total %}Showing {{ pg.start }}–{{ pg.end }} of {{ pg.total }}{% else %}No results{% endif %}
+  </div>
+  <div class="pg-controls">
+    {% if pg.page > 1 %}
+      <a href="{{ page_link(pg.page - 1) }}">‹</a>
+    {% else %}
+      <span class="pg-disabled">‹</span>
+    {% endif %}
+    {% set window = 2 %}
+    {% for p in range(1, pg.pages + 1) %}
+      {% if p == 1 or p == pg.pages or (p >= pg.page - window and p <= pg.page + window) %}
+        {% if p == pg.page %}
+          <span class="pg-current">{{ p }}</span>
+        {% else %}
+          <a href="{{ page_link(p) }}">{{ p }}</a>
+        {% endif %}
+      {% elif p == pg.page - window - 1 or p == pg.page + window + 1 %}
+        <span>…</span>
+      {% endif %}
+    {% endfor %}
+    {% if pg.page < pg.pages %}
+      <a href="{{ page_link(pg.page + 1) }}">›</a>
+    {% else %}
+      <span class="pg-disabled">›</span>
+    {% endif %}
+  </div>
+  <form method="get" class="pg-size">
+    {% for k, v in request.args.items(multi=True) %}{% if k not in ["page_size","page"] %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}{% endfor %}
+    <select name="page_size" onchange="this.form.requestSubmit()">
+      {% for size in ["25","50","100","all"] %}
+      <option value="{{ size }}" {% if request.args.get('page_size','50')==size %}selected{% endif %}>{{ "All rows" if size=="all" else size ~ " / page" }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+{% endmacro %}
+
+{% macro sortable_th(column, label) %}
+<th>
+  <a href="{{ sort_link(column) }}">
+    {{ label }}
+    <span class="sort-ic {{ 'active' if sort_state(column) else '' }}">
+      {% if sort_state(column) == 'asc' %}▲{% elif sort_state(column) == 'desc' %}▼{% else %}⇅{% endif %}
+    </span>
+  </a>
+</th>
+{% endmacro %}

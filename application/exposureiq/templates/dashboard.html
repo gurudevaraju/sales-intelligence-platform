@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · ExposureIQ{% endblock %}
+{% block header %}Dashboard{% endblock %}
+{% block header_actions %}
+  <a href="/leads?grade=A" class="btn btn-lime">View hot leads →</a>
+{% endblock %}
+{% block content %}
+
+{% if stats.top_leads %}
+{% set top = stats.top_leads[0] %}
+<div class="hero-banner">
+  <div>
+    <div class="hero-eyebrow">Top opportunity this week</div>
+    <div class="hero-title">{{ top.company }} · Grade {{ top.lead_grade }} · Score {{ top.lead_score }}</div>
+    <div class="hero-sub">{{ top.priority_reason }}</div>
+  </div>
+  <a href="/company/{{ top.company }}" class="btn hero-cta">View company →</a>
+</div>
+{% endif %}
+
+<div class="grid grid-4 section">
+  <div class="card kpi-accent">
+    <div class="kpi-label">Companies scanned</div>
+    <div class="kpi-value">{{ stats.total_companies }}</div>
+    <div class="kpi-sub">{{ stats.total_hosts }} total internet-facing hosts</div>
+  </div>
+  <div class="card kpi-accent">
+    <div class="kpi-label">Grade A leads</div>
+    <div class="kpi-value">{{ stats.hot_leads }}</div>
+    <div class="kpi-sub">Ready for immediate outreach</div>
+  </div>
+  <div class="card kpi-accent">
+    <div class="kpi-label">Critical exposures</div>
+    <div class="kpi-value">{{ stats.total_critical }}</div>
+    <div class="kpi-sub">{{ stats.total_high }} high-severity findings</div>
+  </div>
+  <div class="card kpi-accent">
+    <div class="kpi-label">Avg lead score</div>
+    <div class="kpi-value">{{ stats.avg_score }}</div>
+    <div class="kpi-sub">Across all scanned companies</div>
+  </div>
+</div>
+
+<div class="grid grid-2 section">
+  <div class="card">
+    <div class="section-title">Leads by grade</div>
+    {% for g in ["A","B","C","D"] %}
+    {% set v = stats.grade_counts.get(g, 0) %}
+    {% set max = stats.total_companies or 1 %}
+    <div class="bar-row">
+      <div class="bar-label">Grade {{ g }}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:{{ (v/max*100)|round(1) }}%;background:{{ {'A':'#2FBF71','B':'#EA580C','C':'#F0C242','D':'#E4483F'}[g] }};"></div></div>
+      <div class="bar-val">{{ v }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <div class="section-title">Findings by severity</div>
+    {% for sev, v in stats.severity_counts.items() %}
+    {% set max = stats.severity_counts.values()|max %}
+    <div class="bar-row">
+      <div class="bar-label" style="text-transform:capitalize;">{{ sev }}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:{{ (v/max*100)|round(1) }}%;background:{{ {'critical':'#E4483F','high':'#F2954A','medium':'#F0C242','low':'#2FBF71'}[sev] }};"></div></div>
+      <div class="bar-val">{{ v }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="grid grid-2 section">
+  <div class="card">
+    <div class="section-title">Most exposed technologies</div>
+    {% set pmax = stats.top_products.values()|max if stats.top_products else 1 %}
+    {% for p, v in stats.top_products.items() %}
+    <div class="bar-row">
+      <div class="bar-label" title="{{ p }}">{{ p }}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:{{ (v/pmax*100)|round(1) }}%;background:var(--navy);"></div></div>
+      <div class="bar-val">{{ v }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="card">
+    <div class="section-title">Top geographies</div>
+    {% set cmax = stats.country_counts.values()|max if stats.country_counts else 1 %}
+    {% for c, v in stats.country_counts.items() %}
+    <div class="bar-row">
+      <div class="bar-label">{{ c }}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:{{ (v/cmax*100)|round(1) }}%;background:var(--navy-soft);"></div></div>
+      <div class="bar-val">{{ v }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card section">
+  <div class="section-title">Top priority leads right now</div>
+  <table>
+    <thead><tr><th>Company</th><th>Grade</th><th>Score</th><th>Hosts</th><th>Critical CVEs</th><th>Why</th><th></th></tr></thead>
+    <tbody>
+      {% for l in stats.top_leads %}
+      <tr>
+        <td class="company-cell"><strong>{{ l.company }}</strong><span>{{ l.domain }}</span></td>
+        <td><span class="badge grade-{{ l.lead_grade }}">{{ l.lead_grade }}</span></td>
+        <td class="score-cell">{{ l.lead_score }}</td>
+        <td class="mono">{{ l.n_hosts }}</td>
+        <td class="mono">{{ l.n_critical }}</td>
+        <td class="reason-cell">{{ l.priority_reason }}</td>
+        <td><a class="btn btn-sm" href="/company/{{ l.company }}" style="background:var(--gradient);border:none;color:#fff;white-space:nowrap;">View →</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

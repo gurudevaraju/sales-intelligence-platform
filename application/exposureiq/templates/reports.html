@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block title %}Reports & Analytics · ExposureIQ{% endblock %}
+{% block header %}Reports &amp; Analytics{% endblock %}
+{% block header_actions %}
+  <a class="btn btn-lime" href="/leads/export.csv">Export full lead list →</a>
+{% endblock %}
+{% block content %}
+
+<div class="grid grid-4 section">
+  <div class="card kpi-accent"><div class="kpi-label">Companies</div><div class="kpi-value">{{ stats.total_companies }}</div></div>
+  <div class="card kpi-accent"><div class="kpi-label">Hosts scanned</div><div class="kpi-value">{{ stats.total_hosts }}</div></div>
+  <div class="card kpi-accent"><div class="kpi-label">Critical findings</div><div class="kpi-value">{{ stats.total_critical }}</div></div>
+  <div class="card kpi-accent"><div class="kpi-label">Avg lead score</div><div class="kpi-value">{{ stats.avg_score }}</div></div>
+</div>
+
+<div class="card section">
+  <div class="section-title">Build a graph</div>
+  <form class="chart-form" method="post" action="/reports/charts">
+    <div class="f-group">
+      <label>Name</label>
+      <input type="text" name="name" placeholder="e.g. Grade mix" required>
+    </div>
+    <div class="f-group">
+      <label>Dataset</label>
+      <select name="dataset" onchange="onDatasetChange(this)">
+        {% for key, cfg in chart_fields.items() %}
+        <option value="{{ key }}">{{ cfg.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="f-group">
+      <label>Chart type</label>
+      <select name="chart_type">
+        <option value="bar">Bar</option>
+        <option value="line">Line</option>
+        <option value="pie">Pie</option>
+        <option value="donut">Donut</option>
+        <option value="table">Table</option>
+      </select>
+    </div>
+
+    {% for key, cfg in chart_fields.items() %}
+    <div class="dataset-fields {{ 'active' if loop.first else '' }}" data-dataset="{{ key }}">
+      <div class="f-group">
+        <label>Group by</label>
+        <select name="group_by_{{ key }}">
+          {% for val, label in cfg.group_by %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="f-group">
+        <label>Metric</label>
+        <select name="metric_{{ key }}">
+          {% for val, label in cfg.metric %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    {% endfor %}
+
+    <button class="btn btn-lime" type="submit">Save graph</button>
+  </form>
+</div>
+
+{% if saved_charts %}
+<div class="grid grid-2 section">
+  {% for chart in saved_charts %}
+  <div class="card chart-card" id="chart-{{ chart.id }}">
+    <button class="btn btn-sm chart-delete" onclick="deleteChart({{ chart.id }})" title="Remove">✕</button>
+    <div class="section-title">{{ chart.name }}</div>
+    <div class="kpi-sub" style="margin-bottom:14px;">
+      {{ chart_fields[chart.dataset].label }} · grouped by {{ chart.group_by }} · {{ chart.metric.replace('_',' ') }} · {{ chart.chart_type }}
+    </div>
+
+    {% if not chart.data %}
+      <div class="text-muted" style="font-size:13px;">No data for this combination.</div>
+
+    {% elif chart.chart_type == "bar" %}
+      {% set cmax = chart.data[0].value if chart.data else 1 %}
+      {% for row in chart.data %}
+      <div class="bar-row">
+        <div class="bar-label" title="{{ row.label }}">{{ row.label }}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:{{ (row.value/cmax*100)|round(1) if cmax else 0 }}%;background:var(--orange);"></div></div>
+        <div class="bar-val">{{ row.value }}</div>
+      </div>
+      {% endfor %}
+
+    {% elif chart.chart_type == "table" %}
+      <table>
+        <thead><tr><th>{{ chart.group_by }}</th><th>{{ chart.metric.replace('_',' ')|capitalize }}</th></tr></thead>
+        <tbody>
+          {% for row in chart.data %}
+          <tr><td>{{ row.label }}</td><td class="mono">{{ row.value }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+    {% elif chart.chart_type in ("pie", "donut") %}
+      <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;">
+        <div style="width:150px;height:150px;border-radius:50%;background:{{ chart.pie_css }};flex-shrink:0;position:relative;">
+          {% if chart.chart_type == "donut" %}
+          <div style="position:absolute;inset:32px;border-radius:50%;background:var(--card);"></div>
+          {% endif %}
+        </div>
+        <div style="flex:1;min-width:160px;">
+          {% for item in chart.legend %}
+          <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:6px;">
+            <span style="width:10px;height:10px;border-radius:3px;background:{{ item.color }};flex-shrink:0;"></span>
+            <span style="flex:1;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.label }}</span>
+            <span style="font-weight:700;">{{ item.value }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+    {% elif chart.chart_type == "line" %}
+      <svg viewBox="0 0 400 140" style="width:100%;height:150px;">
+        <polyline points="{{ chart.line_polyline }}" fill="none" stroke="var(--orange)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+        {% for p in chart.line_points %}
+        <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.5" fill="var(--orange-dark)"/>
+        {% endfor %}
+      </svg>
+      <div style="display:flex;justify-content:space-between;margin-top:4px;">
+        {% for p in chart.line_points %}
+        <span class="text-muted" style="font-size:10.5px;max-width:{{ (100/chart.line_points|length)|round }}%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ p.label }}: {{ p.value }}">{{ p.label }}</span>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="card section">
+  <div class="section-title">Top CVEs across the dataset</div>
+  <div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        {{ m.sortable_th("cve", "CVE") }}
+        {{ m.sortable_th("severity", "Severity") }}
+        {{ m.sortable_th("count", "Affected hosts") }}
+        {{ m.sortable_th("cvss", "Max CVSS") }}
+        {{ m.sortable_th("epss", "Max EPSS") }}
+        <th>Summary</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for cve in top_cves %}
+      <tr>
+        <td class="mono">{{ cve.cve }}</td>
+        <td><span class="badge sev-{{ cve.severity }}">{{ cve.severity }}</span></td>
+        <td class="mono">{{ cve.count }}</td>
+        <td class="mono">{{ cve.cvss }}</td>
+        <td class="mono">{{ cve.epss }}</td>
+        <td class="text-muted" style="max-width:340px;">{{ cve.summary }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<div class="grid grid-2 section">
+  <div class="card">
+    <div class="section-title">Leads by grade</div>
+    {% for g in ["A","B","C","D"] %}
+    {% set v = stats.grade_counts.get(g, 0) %}
+    {% set max = stats.total_companies or 1 %}
+    <div class="bar-row">
+      <div class="bar-label">Grade {{ g }}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:{{ (v/max*100)|round(1) }}%;background:{{ {'A':'#2FBF71','B':'#EA580C','C':'#F0C242','D':'#E4483F'}[g] }};"></div></div>
+      <div class="bar-val">{{ v }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="card">
+    <div class="section-title">Scan activity (last 30 days seen)</div>
+    {% set svmax = scans_by_day.values()|max if scans_by_day else 1 %}
+    {% for day, v in scans_by_day.items() %}
+    <div class="bar-row">
+      <div class="bar-label">{{ day }}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:{{ (v/svmax*100)|round(1) }}%;background:var(--text);"></div></div>
+      <div class="bar-val">{{ v }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}

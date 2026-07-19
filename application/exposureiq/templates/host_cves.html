@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ ip }}:{{ port }} CVEs · ExposureIQ{% endblock %}
+{% block header %}<a href="/vulnerable-assets" class="text-muted" style="font-size:13px;">← Back to Vulnerable Assets</a>{% endblock %}
+{% block content %}
+
+<div class="detail-head">
+  <div>
+    <h1>{{ ip }}:{{ port }}</h1>
+    <div class="detail-domain"><a href="/company/{{ company }}">{{ company }}</a> · {{ cves|length }} CVE{{ "s" if cves|length != 1 else "" }}</div>
+  </div>
+</div>
+
+<div class="table-wrap">
+  {% if cves %}
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>CVE</th><th>Severity</th><th>CVSS</th><th>EPSS</th><th>Verified</th><th>Summary</th></tr></thead>
+    <tbody>
+      {% for v in cves %}
+      <tr>
+        <td class="mono">{{ v.cve }}</td>
+        <td><span class="badge sev-{{ v.severity }}">{{ v.severity }}</span></td>
+        <td class="mono">{{ v.cvss }}</td>
+        <td class="mono">{{ v.epss }}</td>
+        <td>{{ "Yes" if v.verified else "No" }}</td>
+        <td class="text-muted" style="max-width:420px;">{{ v.summary }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="empty-state"><h3>No CVE records found for this host</h3></div>
+  {% endif %}
+</div>
+{% endblock %}

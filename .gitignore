@@ -6,13 +6,16 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 
-# Data: raw input (~78 GB) and generated outputs -- regenerate locally via
-# 01_data_prep/pyspark_files/, never commit. Keep the folder structure with
-# .gitkeep files instead of the actual data.
-01_data_prep/data/raw_data/
-01_data_prep/data/filtered_data/
-01_data_prep/data/cache/
-01_data_prep/data/raw_schema/
+# Data: only the raw uncompressed JSONL export is excluded (~69 GB,
+# regenerate/re-download separately). Its compressed .zst copy (~9 GB) and
+# the smaller generated outputs (filtered CSVs, schema cache) are tracked.
+data_prep/data/raw_data/test_scans.json
+
+# Large generated outputs (exceed GitHub's 100 MB per-file limit).
+# Regenerate locally via the pyspark pipeline notebooks instead of tracking.
+data_prep/data/filtered_data/vulnerable_cves.csv
+data_prep/data/filtered_data/hosts_scored.csv
+data_prep/data/filtered_data/vulnerable_hosts.csv
 
 # Secrets / local env config
 .env

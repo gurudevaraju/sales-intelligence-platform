@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block title %}Vulnerable Assets · ExposureIQ{% endblock %}
+{% block header %}Vulnerable Assets{% endblock %}
+{% block header_actions %}
+  <a class="btn btn-lime" href="/vulnerable-assets/export.csv?{{ request.query_string.decode() }}">Export CSV →</a>
+{% endblock %}
+{% block content %}
+
+<div class="grid grid-4 section">
+  <div class="card kpi-accent">
+    <div class="kpi-label">Total vulnerable hosts</div>
+    <div class="kpi-value">{{ "{:,}".format(summary.total) }}{{ "+" if summary.total_capped else "" }}</div>
+    <div class="kpi-sub">{{ "Capped for speed - narrow with filters for an exact count" if summary.total_capped else "Across all scanned companies" }}</div>
+  </div>
+  <div class="card">
+    <div class="kpi-label" style="margin-bottom:10px;">By severity</div>
+    {% for sev in ["critical","high","medium","low"] %}
+    {% set v = summary.severity_counts.get(sev, 0) %}
+    {% if v %}
+    <a href="/vulnerable-assets?severity={{ sev }}" class="badge sev-{{ sev }}" style="margin:0 6px 6px 0;display:inline-flex;">{{ sev }} · {{ "{:,}".format(v) }}</a>
+    {% endif %}
+    {% endfor %}
+  </div>
+  <div class="card">
+    <div class="kpi-label" style="margin-bottom:10px;">Top exposed products</div>
+    {% for p in summary.top_products[:5] %}
+    <div style="font-size:12.5px;margin-bottom:5px;">
+      <a href="/vulnerable-assets?product={{ p.label }}">{{ p.label }}</a>
+      <span class="text-muted"> · {{ "{:,}".format(p.value) }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="card">
+    <div class="kpi-label" style="margin-bottom:10px;">Most exposed companies</div>
+    {% for c in summary.top_companies[:5] %}
+    <div style="font-size:12.5px;margin-bottom:5px;">
+      <a href="/company/{{ c.label }}">{{ c.label }}</a>
+      <span class="text-muted"> · {{ "{:,}".format(c.value) }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="layout">
+  <form class="filters filters-form" method="get">
+    <h4>Filters</h4>
+    <div class="f-group">
+      <label>Search</label>
+      <input type="text" name="q" value="{{ args.get('q','') }}" placeholder="Company, IP or product">
+    </div>
+    <div class="f-group">
+      <label>Severity</label>
+      <div class="f-checks">
+        {% for s in options.severities %}
+        <label><input type="checkbox" name="severity" value="{{ s }}" {% if s in args.getlist('severity') %}checked{% endif %}> {{ s|capitalize }}</label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="f-group">
+      <label>Product</label>
+      <div class="f-checks">
+        {% for p in options.products %}
+        <label><input type="checkbox" name="product" value="{{ p }}" {% if p in args.getlist('product') %}checked{% endif %}> {{ p }}</label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="f-group">
+      <label>Country</label>
+      <div class="f-checks">
+        {% for c in options.countries %}
+        <label><input type="checkbox" name="country" value="{{ c }}" {% if c in args.getlist('country') %}checked{% endif %}> {{ c }}</label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="f-group">
+      <label>Port</label>
+      <select name="port">
+        <option value="">Any</option>
+        {% for p in options.ports %}
+        <option value="{{ p }}" {% if args.get('port')==p|string %}selected{% endif %}>{{ p }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="f-actions">
+      <button class="btn btn-primary btn-sm" type="submit">Apply</button>
+      <a class="btn btn-sm" href="/vulnerable-assets">Reset</a>
+    </div>
+  </form>
+
+  <div class="table-wrap">
+    <div class="table-toolbar">
+      <span class="result-count">
+        {{ "{:,}".format(result_count) }}{{ "+" if result_capped else "" }} vulnerable hosts match
+        {% if result_capped %}<span class="text-muted"> (capped - add filters to narrow)</span>{% endif %}
+      </span>
+    </div>
+    {% if hosts %}
+    <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          {{ m.sortable_th("_company", "Company") }}
+          {{ m.sortable_th("ip_str", "IP : Port") }}
+          {{ m.sortable_th("product", "Product") }}
+          <th>Version</th>
+          {{ m.sortable_th("_vuln_severity", "Severity") }}
+          {{ m.sortable_th("_vuln_max_cvss", "Max CVSS") }}
+          <th>CVEs</th>
+          {{ m.sortable_th("country", "Location") }}
+          {{ m.sortable_th("timestamp", "Last seen") }}
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in hosts %}
+        <tr>
+          <td class="company-cell"><strong>{{ h._company }}</strong><span>{{ h._company_domain }}</span></td>
+          <td class="mono">{{ h.ip_str }}:{{ h.port }}</td>
+          <td>{{ h.product }}</td>
+          <td class="mono">{{ h.version }}</td>
+          <td><span class="badge sev-{{ h._vuln_severity }}">{{ h._vuln_severity }}</span></td>
+          <td class="mono">{{ h._vuln_max_cvss }}</td>
+          <td>
+            <a class="btn btn-sm" href="/vulnerable-assets/host-cves?company={{ h._company }}&ip={{ h.ip_str }}&port={{ h.port }}">
+              {{ h._vuln_count }} CVE{{ "s" if h._vuln_count != 1 else "" }} →
+            </a>
+          </td>
+          <td>{{ h.city }}, {{ h.country }}</td>
+          <td class="text-muted">{{ h.timestamp[:10] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {{ m.pagination(pg) }}
+    {% else %}
+    <div class="empty-state"><h3>No vulnerable hosts match these filters</h3></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

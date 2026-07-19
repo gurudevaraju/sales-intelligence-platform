@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{{ detail.company.company }} · ExposureIQ{% endblock %}
+{% block header %}<a href="/leads" class="text-muted" style="font-size:13px;">← Back to leads</a>{% endblock %}
+{% block content %}
+{% set c = detail.company %}
+<div class="detail-head">
+  <div>
+    <h1>{{ c.company }} <span class="badge grade-{{ c.lead_grade }}">Grade {{ c.lead_grade }}</span></h1>
+    <div class="detail-domain">{{ c.domain }} {% if c.is_provider %}· <span class="badge pill-provider">hosting/ISP provider</span>{% endif %}</div>
+    <div class="stat-row">
+      <div class="stat-mini"><div class="n">{{ c.lead_score }}</div><div class="l">Lead score</div></div>
+      <div class="stat-mini"><div class="n">{{ c.n_hosts }}</div><div class="l">Hosts</div></div>
+      <div class="stat-mini"><div class="n">{{ c.n_cves }}</div><div class="l">CVEs ({{ c.n_verified_cves }} verified)</div></div>
+      <div class="stat-mini"><div class="n">{{ c.n_critical }}</div><div class="l">Critical</div></div>
+      <div class="stat-mini"><div class="n">{{ c.n_high }}</div><div class="l">High</div></div>
+      <div class="stat-mini"><div class="n">{{ c.max_cvss }}</div><div class="l">Max CVSS</div></div>
+      <div class="stat-mini"><div class="n">{{ c.max_epss }}</div><div class="l">Max EPSS</div></div>
+    </div>
+    <div class="reason-box"><strong>Why this lead:</strong> {{ c.priority_reason }}</div>
+  </div>
+  <div class="card" style="min-width:260px;">
+    <div class="f-group">
+      <label>Lead status</label>
+      <select id="status-field" class="status-select status-{{ status.status }}" style="width:100%;">
+        {% for s in ["New","Contacted","Qualified","Disqualified"] %}
+        <option value="{{ s }}" {% if status.status==s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="f-group">
+      <label>Notes</label>
+      <textarea id="notes-field" rows="4" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13px;">{{ status.notes or '' }}</textarea>
+    </div>
+    <button id="save-notes-btn" class="btn btn-primary btn-sm" onclick="saveNotes('{{ c.company }}')">Save</button>
+  </div>
+</div>
+
+<div id="tabgroup">
+  <div class="tabs">
+    <div class="tab active" data-tab="hosts" onclick="showTab('hosts','tabgroup')">Hosts ({{ detail.hosts|length }})</div>
+    <div class="tab" data-tab="cves" onclick="showTab('cves','tabgroup')">CVEs ({{ detail.cves|length }})</div>
+  </div>
+
+  <div class="tab-panel active" data-panel="hosts">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>IP : Port</th><th>Product</th><th>Version</th><th>OS</th><th>Severity</th><th>Location</th><th>ASN / ISP</th><th>Last seen</th></tr></thead>
+        <tbody>
+          {% for h in detail.hosts %}
+          <tr>
+            <td class="mono">{{ h.ip_str }}:{{ h.port }}</td>
+            <td>{{ h.product }}</td>
+            <td class="mono">{{ h.version }}</td>
+            <td>{{ h.os }}</td>
+            <td><span class="badge sev-{{ h._vuln_severity }}">{{ h._vuln_severity }}</span></td>
+            <td>{{ h.city }}, {{ h.country }}</td>
+            <td class="text-muted">{{ h.asn }} · {{ h.isp }}</td>
+            <td class="text-muted">{{ h.timestamp[:10] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="tab-panel" data-panel="cves">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>CVE</th><th>Severity</th><th>CVSS</th><th>EPSS</th><th>Verified</th><th>Host</th><th>Summary</th></tr></thead>
+        <tbody>
+          {% for v in detail.cves %}
+          <tr>
+            <td class="mono">{{ v.cve }}</td>
+            <td><span class="badge sev-{{ v.severity }}">{{ v.severity }}</span></td>
+            <td class="mono">{{ v.cvss }}</td>
+            <td class="mono">{{ v.epss }}</td>
+            <td>{{ "Yes" if v.verified else "No" }}</td>
+            <td class="mono">{{ v.ip_str }}:{{ v.port }}</td>
+            <td class="text-muted" style="max-width:320px;">{{ v.summary }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
