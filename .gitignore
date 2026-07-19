@@ -1,0 +1,24 @@
+# OS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Data: raw input (~78 GB) and generated outputs -- regenerate locally via
+# 01_data_prep/pyspark_files/, never commit. Keep the folder structure with
+# .gitkeep files instead of the actual data.
+01_data_prep/data/raw_data/
+01_data_prep/data/filtered_data/
+01_data_prep/data/cache/
+01_data_prep/data/raw_schema/
+
+# Secrets / local env config
+.env
+.env.*
+!.env.example
+
+# Virtualenvs
+.venv/
+venv/
